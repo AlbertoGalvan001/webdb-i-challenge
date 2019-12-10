@@ -3,6 +3,7 @@ const express = require('express');
 const knex = require('../data/dbConfig');
 
 const router = express.Router();
+router.use(express.json())
 
 router.get('/', (req, res) => {
     knex
@@ -33,27 +34,47 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
+    const accountData = req.body;
+    knex('accounts')
+        .insert(accountData, "id")
+        .then(info => {
+            const id = info[0];
 
-    knex
-        .insert(req.body, "id")
-        .into('accounts')
-        .then(info => res.status(200).json(info))
-        .catch(error => res.status(500).json({ error: "Error posting info." }))
+
+            return knex('accounts')
+                .select("id", "name", "budget")
+                .where({ id })
+                .first()
+                .then(acct => {
+                    res.status(200).json(acct);
+                });
+        })
+        .catch(error => {
+            console.log(error);
+            res.status(500).json({
+                errorMessage: "Error adding account."
+            });
+        });
 });
 
 router.put('/:id', (req, res) => {
-    const id = req.params.id;
+    const { id } = req.params;
     const changes = req.body;
 
     knex('accounts')
-        .where({ id: id })
+        .where({ id })
         .update(changes)
-        .then(count => {
-            res.status(200).json(count)
+        .then(info => {
+            if (info > 0) {
+                res.status(200).json({ message: `${info} record(s) updated.` });
+            } else {
+                res.status(404).json({ message: "Info not found." });
+            }
         })
         .catch(error => {
             res.status(500).json({ error: "Error updating info." })
         });
+
 });
 
 router.delete('/:id', (req, res) => {
